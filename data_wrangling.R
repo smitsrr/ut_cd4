@@ -30,14 +30,22 @@ node<- voter_turnout[[1]][[1]]
 xmlGetAttr(node, name = "name")
 #now I need to get this in a loop so I can extract all of the names etc. 
 
+# Get's the the results for CD4
+## Will need to append the Straight party information as well. 
+cd4<- getNodeSet(rootnode, "//Contest[@key='45]")
+cd4[[1]][[1]] ## number of precincts for race
+##<VoteType name="Number of Precincts for Race" votes="439">
+##  <Precinct name="BLF001" votes="1"/>
 
-##########
-library(xml2)
+cd4[[1]][[2]] ## Number of precincts reporting (don't need this one, since everthing is done)
+cd4[[1]][[3]]
+## <VoteType name="Times Blank Voted" votes="5842">
+##   <Precinct name="BLF001" votes="27"/>
+cd4[[1]][[4]]
+## <VoteType name="Times Over Voted" votes="16">
+##   <Precinct name="BLF001" votes="0"/>
 
-pg <- read_xml("detail.xml")
 
-# get all the <record>s
-recs <- xml_find_all(pg, "//VoterTurnout")
 
 
 ####################################################################
