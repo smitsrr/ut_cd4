@@ -5,10 +5,43 @@ library(dplyr)
 library(rgdal)    # for readOGR(...)
 library(ggplot2)
 
-# CD4 voter data!!
-slco_cd4 <- read.csv("slco_cd4.csv", stringsAsFactors = F) %>%
-  filter(slco_precinct != "Total:")
+###################################################################3
+# TRY TO READ IN SLCO DATA  
 
+# Load the packages required to read XML files.
+library("XML")
+library("methods")
+library(xpath)
+
+# Give the input file name to the function.
+result <- xmlParse(file = "detail.xml")
+rootnode <- xmlRoot(result) # Exract the root node form the xml file.
+
+names(rootnode) ## found objects!
+names(rootnode[3])
+
+rootnode[[5]][[1]] ## = voter turnout
+
+  #This extracts the nodeset
+voter_turnout<- getNodeSet(rootnode, 
+                           "//VoterTurnout/Precincts")
+node<- voter_turnout[[1]][[1]]
+
+xmlGetAttr(node, name = "name")
+#now I need to get this in a loop so I can extract all of the names etc. 
+
+
+##########
+library(xml2)
+
+pg <- read_xml("detail.xml")
+
+# get all the <record>s
+recs <- xml_find_all(pg, "//VoterTurnout")
+
+
+####################################################################
+#MAPPING
 
 head(fips_codes)
 utah_counties<- filter(fips_codes, fips_codes$state_name == 'Utah')
@@ -87,19 +120,5 @@ mi_cities <- map_df(2012:2016, function(x) {
 
 mi_cities %>% arrange(NAME, year)
 
-###################################################################3
-# TRY TO READ IN SLCO DATA  
 
-# Load the packages required to read XML files.
-library("XML")
-library("methods")
 
-# Give the input file name to the function.
-result <- xmlParse(file = "detail.xml")
-
-# Exract the root node form the xml file.
-rootnode <- xmlRoot(result)
-
-# Print the result.
-head(rootnode[5]) ## Voter turnout
-voter_turnout <- xmlToDataFrame(rootnode[5])
