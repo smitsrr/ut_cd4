@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+from xml.etree import ElementTree
 tree = ET.parse('detail.xml')
 root = tree.getroot()
 
@@ -8,9 +9,22 @@ root = tree.getroot()
 
 ## https://docs.python.org/2/library/xml.etree.elementtree.html
 
-for contest in root.iter('Contest'):
-    print(contest.attrib)
+#for contest in root.iter('Contest'):
+#    print(contest.attrib)
+# prints the attributes of the head node
 
-#                        >>> for neighbor in root.iter('neighbor'):
-#...     print neighbor.attrib
+house_race = tree.findall('.//Contest[@text="U.S. REPRESENTATIVE DISTRICT #4"]')
+
+# 'year' nodes that are children of nodes with name='Singapore'
+house_race = tree.findall(".//*[@text='U.S. REPRESENTATIVE DISTRICT #4']/Choice")
+xmlstr = ElementTree.tostring(house_race).decode()
+print(xmlstr)
+
+
+##
+##for contest in root.iter('Contest'):
+##    print(Choice.attrib)
+##    print(Choice.find('*/Choice'))
+
+
 

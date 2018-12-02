@@ -3,20 +3,41 @@ library(leaflet)
 library(rlist)
 library(dplyr)
 library(rgdal)    # for readOGR(...)
-library(ggplot2)
+library(tidyverse)
 
 ###################################################################3
 # TRY TO READ IN SLCO DATA  
 
 # Load the packages required to read XML files.
 library("XML")
+library(xml2)
 library("methods")
-library(xpath)
 
 # Give the input file name to the function.
-result <- xmlTreeParse(file = "detail.xml")
-rootnode <- xmlRoot(result) # Exract the root node form the xml file.
 
+
+xml<- read_xml("detail.xml")
+
+races_tidy3 <- xml %>% 
+  xml_find_all('//Contest') %>% 
+  map_df(~flatten(c(xml_attrs(.x), 
+                    map(xml_children(.x), 
+                        ~set_names(as.list(xml_text(.x)), xml_name(.x)))))) %>%
+  type_convert()
+
+races_tidy3
+#This get's me part of the way there, but i am more interested in all of the children. 
+# the final data frame should look something like:
+# Race (text)  race (key), choice, votetype, precinct, votes
+
+
+
+
+
+
+## Exploration!!
+result <- xmlParse(file = "detail.xml")
+rootnode <- xmlRoot(result) # Exract the root node form the xml file.
 names(rootnode) ## found objects!
 names(rootnode[3])
 
@@ -26,7 +47,7 @@ rootnode[[5]][[1]] ## = voter turnout
 voter_turnout<- getNodeSet(rootnode, 
                            "//VoterTurnout/Precincts")
 node<- voter_turnout[[1]][[1]]
-
+voter<-xmlToDataFrame(node[[1]][[1]], collectNames = T, stringsAsFactors = F)
 #now I need to get this in a loop so I can extract all of the names etc. 
 
 # Get's the the results for CD4
@@ -54,6 +75,11 @@ cd4[[1]][[6]]
 getNodeSet(cd4[[1]])
 ## for all the other races, I could just look at the top 2 candidates, assuming they will be rep/dem, 
 ##   then do 'remaining', and 'withheld'. 
+
+
+
+
+
 
 ####################################################################
 #MAPPING
