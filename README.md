@@ -13,3 +13,6 @@ Ste #2 -Parse XML
 It took me an embarrasing amount of time to get from the xml to a place where I could extract the data elements I need. That's party because they created the xml by storing the data as values of attributes instead of xml values. 
 
 Every tutorial I saw that used `xmlValue` to get the values from the nodes didn't work because the values are actually stored in attribute values. So I had to use `xmlGetAttr()` instead. 
+
+
+Instead of trying to make R do what I want, which doesn't seem to be possible, I'm going to try python for the parsing. 

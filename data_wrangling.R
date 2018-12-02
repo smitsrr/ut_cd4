@@ -14,7 +14,7 @@ library("methods")
 library(xpath)
 
 # Give the input file name to the function.
-result <- xmlParse(file = "detail.xml")
+result <- xmlTreeParse(file = "detail.xml")
 rootnode <- xmlRoot(result) # Exract the root node form the xml file.
 
 names(rootnode) ## found objects!
@@ -27,26 +27,33 @@ voter_turnout<- getNodeSet(rootnode,
                            "//VoterTurnout/Precincts")
 node<- voter_turnout[[1]][[1]]
 
-xmlGetAttr(node, name = "name")
 #now I need to get this in a loop so I can extract all of the names etc. 
 
 # Get's the the results for CD4
 ## Will need to append the Straight party information as well. 
-cd4<- getNodeSet(rootnode, "//Contest[@key='45]")
-cd4[[1]][[1]] ## number of precincts for race
-##<VoteType name="Number of Precincts for Race" votes="439">
-##  <Precinct name="BLF001" votes="1"/>
+cd4<- getNodeSet(rootnode, "//Contest[@key='45']")
+straight<- getNodeSet(rootnode, "//Contest[@text='STRAIGHT PARTY']")
 
+cd4[[1]][[1]] ## <VoteType name="Number of Precincts for Race" votes="439">
 cd4[[1]][[2]] ## Number of precincts reporting (don't need this one, since everthing is done)
-cd4[[1]][[3]]
-## <VoteType name="Times Blank Voted" votes="5842">
-##   <Precinct name="BLF001" votes="27"/>
-cd4[[1]][[4]]
-## <VoteType name="Times Over Voted" votes="16">
-##   <Precinct name="BLF001" votes="0"/>
+cd4[[1]][[3]] ## <VoteType name="Times Blank Voted" votes="5842">
+cd4[[1]][[4]] ## <VoteType name="Times Over Voted" votes="16">
+cd4[[1]][[5]] ## <VoteType name="Number of Under Votes" votes="0">
+cd4[[1]][[6]] ## all of the choice data start here
+xmlGetAttr(cd4[[1]][[6]], name = "party")
+xmlGetAttr(cd4[[1]][[7]], name = "party")
+xmlGetAttr(cd4[[1]][[8]], name = "text")
+xmlGetAttr(cd4[[1]][[9]], name = "text")
+cd4[[1]][[7]] ## <VoteType name="Early Voting" votes="1213">
+cd4[[1]][[8]]
+cd4[[1]][[9]]
+cd4[[1]][[10]]
+cd4[[1]][[6]]
 
 
-
+getNodeSet(cd4[[1]])
+## for all the other races, I could just look at the top 2 candidates, assuming they will be rep/dem, 
+##   then do 'remaining', and 'withheld'. 
 
 ####################################################################
 #MAPPING
