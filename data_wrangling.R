@@ -4,116 +4,95 @@ library(rlist)
 library(dplyr)
 library(rgdal)    # for readOGR(...)
 library(tidyverse)
+library(data.table)
+library(RColorBrewer)
 
 ###################################################################3
-# TRY TO READ IN SLCO DATA  
+# READ IN SLCO DATA from OpenElections
 
-# Load the packages required to read XML files.
-library("XML")
-library(xml2)
-library("methods")
+# #url<- "https://github.com/openelections/openelections-data-ut/raw/master/2018/20181106__ut__general__salt_lake__precinct.csv"
+# #download.file(url, 'slco_districts.csv')
+slco<- read.csv('slco_districts.csv', stringsAsFactors = F)
 
-# Give the input file name to the function.
+# Sanity check to make sure vote counts match elections website
+slco %>%
+  filter(office %in% c('U.S. SENATE', 'PROPOSITION NUMBER 2', 
+                          'U.S. REPRESENTATIVE DISTRICT #4')) %>%
+  group_by(office, candidate) %>%
+  summarise(vote = sum(votes)) %>%
+  arrange(office, desc(vote))
+# Good to know that straight party votes are duplicated in the races they counted in. 
 
-
-xml<- read_xml("detail.xml")
-
-races_tidy3 <- xml %>% 
-  xml_find_all('//Contest') %>% 
-  map_df(~flatten(c(xml_attrs(.x), 
-                    map(xml_children(.x), 
-                        ~set_names(as.list(xml_text(.x)), xml_name(.x)))))) %>%
-  type_convert()
-
-races_tidy3
-#This get's me part of the way there, but i am more interested in all of the children. 
-# the final data frame should look something like:
-# Race (text)  race (key), choice, votetype, precinct, votes
-
-
-
-
-
-
-## Exploration!!
-result <- xmlParse(file = "detail.xml")
-rootnode <- xmlRoot(result) # Exract the root node form the xml file.
-names(rootnode) ## found objects!
-names(rootnode[3])
-
-rootnode[[5]][[1]] ## = voter turnout
-
-  #This extracts the nodeset
-voter_turnout<- getNodeSet(rootnode, 
-                           "//VoterTurnout/Precincts")
-node<- voter_turnout[[1]][[1]]
-voter<-xmlToDataFrame(node[[1]][[1]], collectNames = T, stringsAsFactors = F)
-#now I need to get this in a loop so I can extract all of the names etc. 
-
-# Get's the the results for CD4
-## Will need to append the Straight party information as well. 
-cd4<- getNodeSet(rootnode, "//Contest[@key='45']")
-straight<- getNodeSet(rootnode, "//Contest[@text='STRAIGHT PARTY']")
-
-cd4[[1]][[1]] ## <VoteType name="Number of Precincts for Race" votes="439">
-cd4[[1]][[2]] ## Number of precincts reporting (don't need this one, since everthing is done)
-cd4[[1]][[3]] ## <VoteType name="Times Blank Voted" votes="5842">
-cd4[[1]][[4]] ## <VoteType name="Times Over Voted" votes="16">
-cd4[[1]][[5]] ## <VoteType name="Number of Under Votes" votes="0">
-cd4[[1]][[6]] ## all of the choice data start here
-xmlGetAttr(cd4[[1]][[6]], name = "party")
-xmlGetAttr(cd4[[1]][[7]], name = "party")
-xmlGetAttr(cd4[[1]][[8]], name = "text")
-xmlGetAttr(cd4[[1]][[9]], name = "text")
-cd4[[1]][[7]] ## <VoteType name="Early Voting" votes="1213">
-cd4[[1]][[8]]
-cd4[[1]][[9]]
-cd4[[1]][[10]]
-cd4[[1]][[6]]
-
-
-getNodeSet(cd4[[1]])
-## for all the other races, I could just look at the top 2 candidates, assuming they will be rep/dem, 
-##   then do 'remaining', and 'withheld'. 
-
-
-
-
-
+# Calculate dem percent for each race and precinct
+# filter out straight party since I know those are duplicated (futher analyses later!)
+slco_prop <- slco %>%
+  filter(office != 'STRAIGHT PARTY') %>%
+  group_by(precinct, office) %>%
+  mutate(votes_cast = sum(votes)) %>%
+  ungroup() %>%
+  mutate(candidate_pct = votes/votes_cast, 
+         precinct_fct = as.factor(precinct)) %>%
+  data.table(key = 'precinct') 
+#set the key for the joining of things later. 
 
 ####################################################################
 #MAPPING
 
-head(fips_codes)
-utah_counties<- filter(fips_codes, fips_codes$state_name == 'Utah')
-utah_counties<- filter(utah_counties, utah_counties$county %in% c("Utah County", 
-                                                               "Salt Lake County", 
-                                                               "Juab County", 
-                                                               "Sanpete County"))
-
-ut<- voting_districts("Utah") #Becomes a Large SpatialPolygonsDataFrame
-ut_data<- ut[ut@data$COUNTYFP10 %in% utah_counties$county_code,]
-ut_info<- data.frame(ut_data@data)
-# there are just no variables that join 'ut' to the precinct identifiers in the county registration data. 
-# Maybe there is a new file??
-
-#might be able to get US Census data by state legislative districts, which might line up well with voting precincts. 
-#keep only the polygons with ID in 
-plot(ut_data)
-
 ## TRY NEW PRECINCT SHAPE FILEA; https://gis.utah.gov/data/political/voter-precincts/
-ut_precincts<- readOGR(dsn="VistaBallotAreas")
-precinct_data<- data.frame(ut_precincts@data)
+ut.map<- readOGR(dsn="VistaBallotAreas")
+   # just to inspect what data we have going on here. 
+ut.map.data<- data.frame(ut.map@data)
+   # Filter the spatial polygon just to the data we have so far
+slco.map<- ut.map[ut.map$PrecinctID %in% slco_prop$precinct_fct,]
 
-map <- ggplot() + geom_polygon(data = ut_precincts, aes(x = long, y = lat, group = group)
+map <- ggplot() + 
+  geom_polygon(data = slco.map, aes(x = long, y = lat, group = group)
                                , colour = "black", fill = NA) +
   theme_void()
+map
+#### NEED TO JOIN IN THE VOTING DATA WITH THIS MAP. key = precinct/precinctID
+
+slco.map.tbl<- slco.map@data %>%
+  mutate(precinct = as.character(PrecinctID)) %>%
+  data.table(key = 'precinct')
+
+vote.map<- slco.map.tbl[slco_prop, nomatch=0] # Nomatch clause makes this an inner join
+### THIS JOIN ISN'T WORKING AT ALL. 
 
 
 
-##would like to inner-join for CD4. 
-#first I can nail it down to the 4 counties that are relevant, then hopefully I can inner join
-# to the county election officials data. 
+
+
+map.df<- map.df[county.data]  # should be joined on ID
+
+# Join the voting data with geographies (can only do one race at a time)
+vote.data <- slco_prop %>%
+  filter(candidate == "BEN MCADAMS") %>%
+  inner_join(slco.map, by=c("precinct" = "PrecinctID"))
+
+
+%>%
+  fortify()%>%
+  data.table()
+
+map<- ggplot() +
+  geom_polygon(data=vote.data, aes(x=long, y=lat, group = group), 
+               color = "gray", fill=candidate_pct)+
+  theme_void()
+
+ggplot(vote.data, aes(x=long, y=lat, group = group)) +
+  geom_polygon( aes( fill = candidate_pct)) 
+
+
+
+
+# use the TIGER dataset from the census to draw the state outlines
+# http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_state_5m.zip
+US.states <- readOGR(dsn=".",layer="cb_2016_us_state_5m")
+exclude_states<- c("02", "15", "78", "60", "66", "69", "72")
+US.states<- US.states[!US.states$GEOID %in% exclude_states,]
+us_states<- merge(fortify(US.states), as.data.frame(US.states), by.x="id", by.y=0)
+
 
 
 cd114 <- congressional_districts(cb = TRUE, resolution = '20m')
