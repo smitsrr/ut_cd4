@@ -26,13 +26,15 @@ slco %>%
 # Calculate dem percent for each race and precinct
 # filter out straight party since I know those are duplicated (futher analyses later!)
 slco_prop <- slco %>%
-  filter(office != 'STRAIGHT PARTY') %>%
+  filter(office == 'U.S. REPRESENTATIVE DISTRICT #4') %>%
   group_by(precinct, office) %>%
   mutate(votes_cast = sum(votes)) %>%
   ungroup() %>%
   mutate(candidate_pct = votes/votes_cast, 
          precinct_fct = as.factor(precinct)) %>%
+  filter(candidate == 'BEN MCADAMS') %>%
   data.table(key = 'precinct') 
+# One row per precinct, just plotting % Ben to start!
 #set the key for the joining of things later. 
 
 ####################################################################
@@ -50,16 +52,32 @@ map <- ggplot() +
                                , colour = "black", fill = NA) +
   theme_void()
 map
-#### NEED TO JOIN IN THE VOTING DATA WITH THIS MAP. key = precinct/precinctID
 
-slco.map.tbl<- slco.map@data %>%
-  mutate(precinct = as.character(PrecinctID)) %>%
-  data.table(key = 'precinct')
+#### NEED TO JOIN IN THE VOTING DATA WITH THIS MAP. key = precinct/precinctID
+slco.map.tbl<- slco.map@data 
+slco.map.tbl<- cbind(id=rownames(slco.map.tbl),slco.map.tbl) %>%
+  mutate(PrecinctID = as.character(PrecinctID)) %>%
+  data.table(key = "PrecinctID")
 
 vote.map<- slco.map.tbl[slco_prop, nomatch=0] # Nomatch clause makes this an inner join
-### THIS JOIN ISN'T WORKING AT ALL. 
 
+# make the map layer
+map.df<-data.table(fortify(slco.map))
+setkey(map.df,id)
+# add in interesting data
+map.df<- map.df[vote.map]  # should be joined on ID
 
+ggplot(map.df, aes(x=long, y=lat, group = group)) +
+  geom_polygon()+
+  coord_quickmap()+
+  coord_map("polyconic" ) +
+  theme_void()
+
+map<- ggplot() + 
+  geom_polygon(data = map.df, aes(x = long, y = lat, group = group)
+               , colour = "black") +
+  theme_void()
+map
 
 
 
