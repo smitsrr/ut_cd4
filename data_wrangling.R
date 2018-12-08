@@ -26,14 +26,26 @@ slco %>%
 # Calculate dem percent for each race and precinct
 # filter out straight party since I know those are duplicated (futher analyses later!)
 slco_prop <- slco %>%
-  filter(office == 'U.S. REPRESENTATIVE DISTRICT #4') %>%
+  filter(office%in% c('U.S. SENATE', 'PROPOSITION NUMBER 2', 
+                      'U.S. REPRESENTATIVE DISTRICT #4', 
+                      'PROPOSITION NUMBER 3')) %>%
   group_by(precinct, office) %>%
   mutate(votes_cast = sum(votes)) %>%
   ungroup() %>%
   mutate(candidate_pct = votes/votes_cast, 
          precinct_fct = as.factor(precinct)) %>%
-  filter(candidate == 'BEN MCADAMS') %>%
-  data.table(key = 'precinct') 
+  filter(party == 'DEM' |
+           candidate == "FOR")  %>%
+  mutate(candidate = paste0(office, '-', candidate))
+
+slco_prop2<- slco_prop %>%
+  select(-office, -party, -votes, -vbm, -early_voting, -vote_center,-votes_cast) %>%
+  spread(candidate, candidate_pct)
+
+qplot(slco_prop2$`PROPOSITION NUMBER 3-FOR`, slco_prop2$`U.S. REPRESENTATIVE DISTRICT #4-BEN MCADAMS`) +
+  geom_abline(slope = 1, inercept = 0)
+
+data.table(key = 'precinct') 
 # One row per precinct, just plotting % Ben to start!
 #set the key for the joining of things later. 
 
