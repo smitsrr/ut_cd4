@@ -2,17 +2,17 @@ So stoked for this analysis!
 
 Finally got a shape file with the same precinct IDs as the county election results file (for UT county at least). 
 
-Need to request the damn pdf file from Utah county in basically anything other than pdf. 
-
-Step #1 - download data from the county clerk's website. 
--- Salt Lake county at least offered xml format. 
--- Utah county by default offers a pdf. need to request a better format from their office. 
-
-Ste #2 -Parse XML
-[images/attribute_values.jpg]
-It took me an embarrasing amount of time to get from the xml to a place where I could extract the data elements I need. That's party because they created the xml by storing the data as values of attributes instead of xml values. 
-
-Every tutorial I saw that used `xmlValue` to get the values from the nodes didn't work because the values are actually stored in attribute values. So I had to use `xmlGetAttr()` instead. 
+Mad thanks to the folks at [Open Elections](http://www.openelections.net/results/) for all of their hard work parsing election data at the precinct level!
 
 
-Instead of trying to make R do what I want, which doesn't seem to be possible, I'm going to try python for the parsing. 
+next thing I want to do is look at total votes (or voter turnout) in 2016 compared to 2018.  
+
+Plot voter turnout in 2016 v 2018, or change in number of registered voters in a precinct (% change?)
+
+On the map I want to just have a ton of different layer options:
+- % vote for ben
+- % vote for other interesting races (the propositions)
+
+On a separate tab to show the correlation between races:
+- Ben on x-axis
+- chosen race on y - color the dots by county, size of dots by number of votes. 

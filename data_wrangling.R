@@ -12,10 +12,34 @@ library(RColorBrewer)
 
 # #url<- "https://github.com/openelections/openelections-data-ut/raw/master/2018/20181106__ut__general__salt_lake__precinct.csv"
 # #download.file(url, 'slco_districts.csv')
-slco<- read.csv('slco_districts.csv', stringsAsFactors = F)
+slco_2018<-  read.csv('C:/Users/smits/Documents/GitHub/openelections-data-ut/2018/20181106__ut__general__salt_lake__precinct.csv', stringsAsFactors = F)
+slco_2018<- slco_2018 %>%
+  select(-vbm, -early_voting, -vote_center) 
+## url <- "https://github.com/openelections/openelections-data-ut/blob/master/2018/20181106__ut__general__utah__precinct.csv"
+#  download.file(url, 'ut_co_2018.csv')
+#   this didn't actually end up working, I ended up pulling the repo from github instead
+
+utco_2018<- read.csv('C:/Users/smits/Documents/GitHub/openelections-data-ut/2018/20181106__ut__general__utah__precinct.csv', stringsAsFactors = F)
+
+cd4_18<- rbind(slco_2018, utco_2018)
+## keep only precincts that were cd4 territory
+cd4_precincts<- cd4_18 %>%
+  filter(office == "U.S. REPRESENTATIVE DISTRICT #4" |
+           (office == "US House" &
+              district == 4))
+cd4_precincts<- unique(cd4_precincts$precinct)
+
+cd4_18<- filter(cd4_18, precinct %in% cd4_precincts)
+
+# MAKING PROGRESS!!!
+
+
+
+
+
 
 # Sanity check to make sure vote counts match elections website
-slco %>%
+slco_18 %>%
   filter(office %in% c('U.S. SENATE', 'PROPOSITION NUMBER 2', 
                           'U.S. REPRESENTATIVE DISTRICT #4')) %>%
   group_by(office, candidate) %>%
@@ -25,7 +49,7 @@ slco %>%
 
 # Calculate dem percent for each race and precinct
 # filter out straight party since I know those are duplicated (futher analyses later!)
-slco_prop <- slco %>%
+slco_prop <- slco_18 %>%
   filter(office%in% c('U.S. SENATE', 'PROPOSITION NUMBER 2', 
                       'U.S. REPRESENTATIVE DISTRICT #4', 
                       'PROPOSITION NUMBER 3')) %>%
@@ -48,6 +72,24 @@ qplot(slco_prop2$`PROPOSITION NUMBER 3-FOR`, slco_prop2$`U.S. REPRESENTATIVE DIS
 data.table(key = 'precinct') 
 # One row per precinct, just plotting % Ben to start!
 #set the key for the joining of things later. 
+
+# in order to make the correlation matrix I'm interested in, I need to have only precinct down the rows, and 
+# each column is a value (% dem), but then I'll also want a column for num_votes for that race
+
+slco_corr<- slco %>%
+  filter(office != 'STRAIGHT PARTY') %>%
+  group_by(precinct, office) %>%
+  mutate(votes_cast = sum(votes)) %>%
+  ungroup() %>%
+  select(-district)
+
+# how many precincts did Ben compete in? 
+slco %>%
+  filter(office == 'U.S. REPRESENTATIVE DISTRICT #4')%>%
+  group_by(precinct) %>%
+  tally()
+
+unique(slco)
 
 ####################################################################
 #MAPPING
@@ -171,4 +213,46 @@ mi_cities <- map_df(2012:2016, function(x) {
 mi_cities %>% arrange(NAME, year)
 
 
+##################################
+## 2016 election!
+##################################
+
+
+# url<- "https://github.com/openelections/openelections-data-ut/blob/master/2016/20161108__ut__general__salt_lake__precinct.csv"
+# download.file(url, 'slco_districts_2016.csv')
+slco_2016<- read.csv('slco_districts.csv', stringsAsFactors = F) %>%
+  select(-vbm, -early_voting, -vote_center)
+
+# url<- "https://github.com/openelections/openelections-data-ut/blob/master/2016/20161108__ut__general__tooele__precinct.csv"
+# download.file(url, 'utco_districts_2016.csv')
+
+utco_2016<- read.csv('C:/Users/smits/Documents/GitHub/openelections-data-ut/2016/20161108__ut__general__utah__precinct.csv', stringsAsFactors = F)
+
+cd4_16<- rbind(slco_2016, utco_2016)
+## keep only precincts that were cd4 territory
+cd4_precincts<- cd4_16 %>%
+  filter(office == "U.S. REPRESENTATIVE DISTRICT #4" |
+           (office == "U.S. House" &
+           district == 4))
+cd4_precincts<- unique(cd4_precincts$precinct)
+
+cd4_16<- filter(cd4_16, precinct %in% cd4_precincts)
+write.csv(cd4_16, "cd4_2016.csv", row.names = F)
+
+
+
+
+ut.map<- readOGR(dsn="VistaBallotAreas")
+# just to inspect what data we have going on here. 
+ut.map.data<- data.frame(ut.map@data)
+# Filter the spatial polygon just to the data we have so far
+cd4.map<- ut.map[ut.map$PrecinctID %in% cd4_precincts,]
+
+
+
+map <- ggplot() + 
+  geom_polygon(data = cd4.map, aes(x = long, y = lat, group = group)
+               , colour = "black", fill = NA) +
+  theme_void()
+map
 
