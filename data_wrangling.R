@@ -51,7 +51,8 @@ cd4<- rbind(cd4_16, cd4_18) %>%
   group_by(year, county, precinct, office, district) %>%
   mutate(votes_cast = sum(votes))
 
-write.csv(cd4, "cd4.csv", row.names = F)
+setwd('..')
+write.csv(cd4, "./ut_cd4_house_race/district4.csv", row.names = F)
 
 
 cd4 %>%
