@@ -13,6 +13,13 @@ slco_2018<- slco_2018 %>%
 utco_2018<- read.csv('./2018/20181106__ut__general__utah__precinct.csv', stringsAsFactors = F)
 utco_2018 <- filter(utco_2018, precinct != 'UTAH UT') #filter out this icky 'total' Row!
 
+cd4 %>%
+  filter(office == "U.S. REPRESENTATIVE DISTRICT #4" |
+           (office == "U.S. House" &
+              district == 4)) %>%
+  group_by(year, candidate) %>%
+  summarize(votes = sum(votes)) %>%
+  arrange(year, desc(votes))
 
 ###############################################################
 # Sanity check to make sure vote counts match elections website

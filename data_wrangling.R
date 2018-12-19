@@ -5,6 +5,7 @@ library(dplyr)
 library(rgdal)    # for readOGR(...)
 library(tidyverse)
 library(data.table)
+library(statnet.common)
 library(RColorBrewer)
 
 ###################################################################3
@@ -55,14 +56,81 @@ setwd('..')
 write.csv(cd4, "./ut_cd4_house_race/district4.csv", row.names = F)
 
 
-cd4 %>%
+# calculate changes in vote % from 16 to 18
+cd4_house_change<- 
+  cd4 %>%
   filter(office == "U.S. REPRESENTATIVE DISTRICT #4" |
            (office == "U.S. House" &
+              district == 4) |
+           (office == "US House" &
               district == 4)) %>%
-  group_by(year, candidate) %>%
-  summarize(votes = sum(votes)) %>%
-  arrange(year, desc(votes))
+  arrange(precinct, year, candidate) %>%
+  mutate(percent_of_vote = votes/votes_cast, 
+         party = substring(toupper(party), 1,3)) %>%
+  group_by(precinct, party) %>%
+  mutate(net_change = percent_of_vote - lag(percent_of_vote)) %>%
+  filter(year == 2018) %>%
+  write.csv('./ut_cd4_house_race/change_in_votes.csv', row.names = F, na = "")
+# party votes in 2016 v 2018
+# precinct votes in 2016 v 2018
 
+
+## change in percent by precinct is kind of deceiving since many precincts have < 50 voters. 
+# i'm goin to change to net change in numer of votes. 
+# negative = net rep gain. 
+# positive = net democratic gain. 
+
+#################################################################
+## CORRELATE EVERY RACE V. EVERY RACE. 
+cd4_corr<- cd4 %>%
+  filter(grepl('STATE REPR', office) | 
+           office == 'State House' |
+          grepl('STATE SENA', office) |
+           office == 'State Senate' ) %>%
+  group_by(precinct, year, office, district)%>%
+  count(party)
+
+#every precinct should vote on one and only one? state rep and state senate. Yah!
+
+# That means I can correlate Ben with every other local race. 
+cd4_corr<- cd4 %>%
+  filter(grepl('STATE REPR', office) |   office == 'State House' |
+           grepl('STATE SENA', office) | office == 'State Senate' |
+           office == "U.S. REPRESENTATIVE DISTRICT #4" |
+           (office == "U.S. House" & district == 4) | (office == "US House" & district == 4)) %>%
+  mutate(vote_prop = votes/votes_cast, 
+         party = substr(toupper(party),1,3), 
+         office2 = case_when(
+           grepl('STATE REP', office) ~ paste('State House', NVL(party, 'none')),
+           grepl('STATE SEN', office) ~ paste('State Senate', NVL(party,'none')), 
+           grepl('U.S. House', office) ~paste('US House', NVL(party,'none')), 
+           grepl('U.S. REPRE', office)  ~paste('US House', NVL(party,'none')), 
+           TRUE ~ paste(office, party)
+         )) %>%
+  ungroup() %>%
+  filter(party  %in% c('DEM', 'REP', 'CON', 'LIB')) %>%
+  select(-office, -candidate, -district, -party, -votes) %>%
+  group_by(precinct, year) %>%
+  mutate(max_votes = max(votes_cast)) %>%
+  select(-votes_cast) %>%
+  spread(key = office2, value = vote_prop) %>%
+  arrange(county, precinct)
+write.csv(cd4_corr, 'local_to_national_corr.csv', row.names = F, na='0')
+
+# just filter to these parties --it'll be eaiser. 
+# already created the proportion, so it doesn't matter. 
+# taking the max votes by precinct isn't 100% accurate, but it should
+# give us an idea of the size of the precinct, which is the point. 
+
+# all years
+ggplot(cd4_corr, aes(x=`US House DEM`, y=`State House DEM`, color = county)) + 
+  geom_point(alpha = .5)
+
+ggplot(cd4_corr[cd4_corr$year == 2018, ], aes(x=`US House DEM`, y=`State House DEM`, color = county)) + 
+  geom_point(alpha = .5)
+  
+ggplot(cd4_corr[cd4_corr$year == 2018, ], aes(x=`US House DEM`, y=`State Senate DEM`, color = county)) + 
+  geom_point(alpha = .5)
 
 ##############################################################
 
@@ -126,6 +194,12 @@ map <- ggplot() +
   theme_void()
 map
 
+tiger_cousub<- readOGR(dsn = "cb_2017_49_cousub_500k")
+cousub.data<-data.frame(tiger_cousub@data)
+
+tiger_tracts<- readOGR(dsn = "tl_2018_49_tabblock10")
+tracts<- data.frame(tiger_tracts@data)
+
 #### NEED TO JOIN IN THE VOTING DATA WITH THIS MAP. key = precinct/precinctID
 slco.map.tbl<- slco.map@data 
 slco.map.tbl<- cbind(id=rownames(slco.map.tbl),slco.map.tbl) %>%
@@ -176,32 +250,6 @@ ggplot(vote.data, aes(x=long, y=lat, group = group)) +
 
 
 
-
-# use the TIGER dataset from the census to draw the state outlines
-# http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_state_5m.zip
-US.states <- readOGR(dsn=".",layer="cb_2016_us_state_5m")
-exclude_states<- c("02", "15", "78", "60", "66", "69", "72")
-US.states<- US.states[!US.states$GEOID %in% exclude_states,]
-us_states<- merge(fortify(US.states), as.data.frame(US.states), by.x="id", by.y=0)
-
-
-
-cd114 <- congressional_districts(cb = TRUE, resolution = '20m')
-cd114_ut<- filter(cd114@data, cd114@data$STATEFP == "49")
-
-
-leaflet(cd114) %>%
-  addTiles() %>%
-  addPolygons()
-
-leaflet(ut) %>%
-  addTiles() %>%
-  addPolygons()
-
-## Goal: Plot at least 2 layers on a map:
-# inside of CD4:
-# -County boundaries
-# -Precinct boundaries
 
 # Essentially then I want to be able to toggle what else to look at and correlate:
 # - % minority (namely hispanis)
