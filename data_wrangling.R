@@ -115,7 +115,7 @@ cd4_corr<- cd4 %>%
   select(-votes_cast) %>%
   spread(key = office2, value = vote_prop) %>%
   arrange(county, precinct)
-write.csv(cd4_corr, 'local_to_national_corr.csv', row.names = F, na='0')
+write.csv(cd4_corr, 'local_to_national_corr2.csv', row.names = F, na = "")
 
 # just filter to these parties --it'll be eaiser. 
 # already created the proportion, so it doesn't matter. 
@@ -133,6 +133,35 @@ ggplot(cd4_corr[cd4_corr$year == 2018, ], aes(x=`US House DEM`, y=`State Senate 
   geom_point(alpha = .5)
 
 ##############################################################
+# US House over/under compared to State House
+# I think looking at the raw difference in # of votes will be inteeresting, since
+# that can be seen as opportunity for Ben
+
+
+cd4_opp<- cd4 %>%
+  filter(grepl('STATE REPR', office) |   office == 'State House' |
+           grepl('STATE SENA', office) | office == 'State Senate' |
+           office == "U.S. REPRESENTATIVE DISTRICT #4" |
+           (office == "U.S. House" & district == 4) | (office == "US House" & district == 4)) %>%
+  mutate(party = substr(toupper(party),1,3), 
+         office2 = case_when(
+           grepl('STATE REP', office) ~ paste('State House', NVL(party, 'none')),
+           grepl('STATE SEN', office) ~ paste('State Senate', NVL(party,'none')), 
+           grepl('U.S. House', office) ~paste('US House', NVL(party,'none')), 
+           grepl('U.S. REPRE', office)  ~paste('US House', NVL(party,'none')), 
+           TRUE ~ paste(office, party)
+         )) %>%
+  ungroup() %>%
+  filter(party  == 'DEM') %>%
+  select(-office, -district, -candidate, -party, -votes_cast) %>%
+  # group_by(precinct, year) %>%
+  # mutate(max_votes = max(votes_cast)) %>%
+  # select(-votes_cast) %>%
+  spread(key = office2, value = votes) %>%
+  arrange(county, precinct) 
+
+write.csv(cd4_opp, 'cd4_opportunity2.csv', row.names = F, na ="")
+
 
 # Calculate dem percent for each race and precinct
 # filter out straight party since I know those are duplicated (futher analyses later!)
